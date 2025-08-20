@@ -167,11 +167,11 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     
     if (displayProduct?.category === "coffee") {
       optionsText = [
-        `• Size: ${options.size}`,
-        `• Shots: ${options.shots}`,
-        `• Sugar level: ${options.sugar}`,
-        `• Ice level: ${options.ice}`,
-        `• Milk type: ${options.milk}`
+        `Size: ${options.size}`,
+        `Shots: ${options.shots}`,
+        `Sugar level: ${options.sugar}`,
+        `Ice level: ${options.ice}`,
+        `Milk type: ${options.milk}`
       ].join("\n")
     } else if (displayProduct?.category === "tea") {
       optionsText = [
