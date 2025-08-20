@@ -175,27 +175,27 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
       ].join("\n")
     } else if (displayProduct?.category === "tea") {
       optionsText = [
-        `• Size: ${options.size}`,
-        `• Sugar level: ${options.sugar}`,
-        `• Ice level: ${options.ice}`
+        `Size: ${options.size}`,
+        `Sugar level: ${options.sugar}`,
+        `Ice level: ${options.ice}`
       ].join("\n")
     } else if (
       ["milk-drinks", "smoothies", "soft-drinks"].includes(displayProduct?.category || "")
     ) {
       optionsText = [
-        `• Size: ${options.size}`,
-        `• Ice level: ${options.ice}`
+        `Size: ${options.size}`,
+        `Ice level: ${options.ice}`
       ].join("\n")
     } else if (
       ["rice-dishes", "noodles", "sandwiches", "cakes-pastries", "salads", "snacks", "desserts"].includes(displayProduct?.category || "")
     ) {
       optionsText = [
-        `• Portion size: ${options.portion}`,
+        `Portion size: ${options.portion}`,
         options.extras ? `• Special requests: ${options.extras}` : ""
       ].filter(Boolean).join("\n")
     }
     
-    return `Hello! I would like to place an order:\n\n• ${quantity} x ${displayProduct?.name}\n${optionsText ? optionsText + "\n" : ""}\nThank you!`
+    return `Hello! I would like to place an order:\n\n${displayProduct?.name} x ${quantity}  \n${optionsText ? optionsText + "\n" : ""}\nThank you!`
   }
 
   const handleTelegramOrder = () => {
