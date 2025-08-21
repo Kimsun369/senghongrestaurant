@@ -1,15 +1,16 @@
 "use client"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { X, Trash, Minus, Plus, ShoppingCart, FileText } from "lucide-react"
+import { X, Trash, Minus, Plus, ShoppingCart, FileText, Maximize2, Download } from "lucide-react"
 import { useBasket } from "@/context/basket-context"
-import { useState, useRef } from "react"
+import { useState, useEffect } from "react"
 import jsPDF from "jspdf"
 
 export function BasketModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { items, updateItem, removeItem, clear, basketTotal } = useBasket()
   const [ordering, setOrdering] = useState(false)
   const [showTransactionModal, setShowTransactionModal] = useState(false)
+  const [isFullScreen, setIsFullScreen] = useState(false)
 
   // Helper for order message/PDF
   const getOrderOptionsText = (category: string | undefined, options: any) => {
@@ -85,28 +86,33 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
     
     // Calculate dynamic height based on content
     const baseHeight = 200
-    const itemHeight = items.length * 100
+    const itemHeight = items.length * 80 // Reduced from 100 to 80 to fit more items
     const totalHeight = Math.max(500, baseHeight + itemHeight)
+    
+    // Adjust font sizes based on number of items
+    const titleFontSize = items.length > 5 ? 16 : 18
+    const itemFontSize = items.length > 5 ? 9 : 10
+    const smallFontSize = items.length > 5 ? 7 : 8
     
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "pt",
-      format: [300, totalHeight] // Reduced width to fit better in preview
+      format: [300, totalHeight]
     })
 
     doc.setFillColor("#f6e9d7")
     doc.rect(0, 0, 300, 70, "F")
-    doc.setFontSize(18)
+    doc.setFontSize(titleFontSize)
     doc.setTextColor("#8d5524")
     doc.setFont("helvetica", "bold")
     doc.text("Slow Drip", 150, 32, { align: "center" })
-    doc.setFontSize(9)
+    doc.setFontSize(smallFontSize)
     doc.setFont("helvetica", "normal")
     doc.setTextColor("#8d5524")
     doc.text("Order Receipt", 150, 50, { align: "center" })
 
     let y = 85
-    doc.setFontSize(10)
+    doc.setFontSize(itemFontSize)
     doc.setTextColor("#333")
     doc.setFont("helvetica", "bold")
     doc.text(`Date: ${timestamp}`, 15, y)
@@ -116,13 +122,13 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
     doc.line(15, y, 285, y)
     y += 15
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(11)
+    doc.setFontSize(itemFontSize)
     doc.text("Order Items", 15, y)
     y += 15
 
     items.forEach((item, idx) => {
       doc.setFont("helvetica", "bold")
-      doc.setFontSize(10)
+      doc.setFontSize(itemFontSize)
       doc.setTextColor("#8d5524")
       doc.text(`Item ${idx + 1}: ${item.product.name}`, 15, y)
       y += 12
@@ -133,32 +139,119 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
       const optionsText = getOrderOptionsText(item.product.category, item.options)
       if (optionsText) {
         doc.setFont("helvetica", "normal")
-        doc.setFontSize(8)
+        doc.setFontSize(smallFontSize)
         const lines = doc.splitTextToSize(optionsText, 250)
         doc.text(lines, 25, y)
-        y += lines.length * 10
+        y += lines.length * 9 // Reduced from 10 to 9 to fit more items
       }
       y += 8
     })
 
     y += 8
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(12)
+    doc.setFontSize(itemFontSize + 2)
     doc.setTextColor("#8d5524")
     doc.text(`Grand Total: $${basketTotal.toFixed(2)}`, 15, y)
     y += 20
 
-    doc.setFontSize(9)
+    doc.setFontSize(smallFontSize)
     doc.setFont("helvetica", "normal")
     doc.setTextColor("#333")
     doc.text("Thank you for your order!", 150, y, { align: "center" })
     y += 12
-    doc.setFontSize(8)
+    doc.setFontSize(smallFontSize - 1)
     doc.setTextColor("#bfa16b")
     doc.text("Slow Drip · Heart of the city", 150, y, { align: "center" })
 
     // Return PDF as DataURL for preview
     return doc.output("dataurlstring")
+  }
+
+  // Download PDF function
+  const downloadPDF = async () => {
+    const timestamp = new Date().toLocaleString()
+    
+    // Calculate dynamic height based on content
+    const baseHeight = 200
+    const itemHeight = items.length * 80
+    const totalHeight = Math.max(500, baseHeight + itemHeight)
+    
+    // Adjust font sizes based on number of items
+    const titleFontSize = items.length > 5 ? 16 : 18
+    const itemFontSize = items.length > 5 ? 9 : 10
+    const smallFontSize = items.length > 5 ? 7 : 8
+    
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: [300, totalHeight]
+    })
+
+    doc.setFillColor("#f6e9d7")
+    doc.rect(0, 0, 300, 70, "F")
+    doc.setFontSize(titleFontSize)
+    doc.setTextColor("#8d5524")
+    doc.setFont("helvetica", "bold")
+    doc.text("Slow Drip", 150, 32, { align: "center" })
+    doc.setFontSize(smallFontSize)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor("#8d5524")
+    doc.text("Order Receipt", 150, 50, { align: "center" })
+
+    let y = 85
+    doc.setFontSize(itemFontSize)
+    doc.setTextColor("#333")
+    doc.setFont("helvetica", "bold")
+    doc.text(`Date: ${timestamp}`, 15, y)
+    y += 20
+
+    doc.setDrawColor("#e0c9a6")
+    doc.line(15, y, 285, y)
+    y += 15
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(itemFontSize)
+    doc.text("Order Items", 15, y)
+    y += 15
+
+    items.forEach((item, idx) => {
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(itemFontSize)
+      doc.setTextColor("#8d5524")
+      doc.text(`Item ${idx + 1}: ${item.product.name}`, 15, y)
+      y += 12
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor("#333")
+      doc.text(`Quantity: ${item.quantity}`, 20, y)
+      y += 10
+      const optionsText = getOrderOptionsText(item.product.category, item.options)
+      if (optionsText) {
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(smallFontSize)
+        const lines = doc.splitTextToSize(optionsText, 250)
+        doc.text(lines, 25, y)
+        y += lines.length * 9
+      }
+      y += 8
+    })
+
+    y += 8
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(itemFontSize + 2)
+    doc.setTextColor("#8d5524")
+    doc.text(`Grand Total: $${basketTotal.toFixed(2)}`, 15, y)
+    y += 20
+
+    doc.setFontSize(smallFontSize)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor("#333")
+    doc.text("Thank you for your order!", 150, y, { align: "center" })
+    y += 12
+    doc.setFontSize(smallFontSize - 1)
+    doc.setTextColor("#bfa16b")
+    doc.text("Slow Drip · Heart of the city", 150, y, { align: "center" })
+
+    // Download the PDF
+    doc.save(`SlowDrip_Order_${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   // Show Transaction Modal
@@ -261,7 +354,7 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
                     </Button>
                     <Button
                       onClick={handleViewTransaction}
-                      className="flex-1 h-12 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold text-base shadow-lg hover:scale-[1.02] transition-all duration-200 active:scale-95"
+                      className="flex-1 h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-base shadow-lg hover:scale-[1.02] transition-all duration-200 active:scale-95"
                     >
                       <FileText className="w-5 h-5 mr-2" />
                       View Transaction
@@ -282,45 +375,74 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
         </DialogContent>
       </Dialog>
 
-      {/* Transaction Preview Modal - Higher z-index to appear on top */}
+      {/* Transaction Preview Modal - Fixed for mobile */}
       {showTransactionModal && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50"
           style={{ zIndex: 9999 }}
         >
           <div 
-            className="relative bg-white rounded-xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-            style={{
-              width: "95vw",
-              maxWidth: "500px",
-              height: "90vh",
-              maxHeight: "800px"
-            }}
+            className={`relative bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden ${
+              isFullScreen ? "w-full h-full max-w-none max-h-none rounded-none" : "w-full h-full max-w-[100vw] max-h-[100vh] sm:w-[95vw] sm:max-w-[500px] sm:h-[90vh] sm:max-h-[800px] sm:rounded-xl"
+            }`}
           >
-            <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-amber-50 to-amber-100">
+            <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-amber-50 to-amber-100 flex-shrink-0">
               <h3 className="font-bold text-lg text-coffee-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-amber-600" />
                 Transaction Preview
               </h3>
-              <button
-                className="text-gray-600 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
-                aria-label="Close"
-                onClick={() => setShowTransactionModal(false)}
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="text-gray-600 hover:text-green-500 transition-colors p-1 rounded-full hover:bg-green-50"
+                  aria-label="Download PDF"
+                  onClick={downloadPDF}
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button
+                  className="text-gray-600 hover:text-blue-500 transition-colors p-1 rounded-full hover:bg-blue-50"
+                  aria-label={isFullScreen ? "Exit full screen" : "View full screen"}
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                >
+                  <Maximize2 className="w-5 h-5" />
+                </button>
+                <button
+                  className="text-gray-600 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                  aria-label="Close"
+                  onClick={() => {
+                    setShowTransactionModal(false)
+                    setIsFullScreen(false)
+                  }}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             
-            <div className="flex-1 p-2 sm:p-4 bg-gray-50 overflow-hidden">
-              <TransactionPDFPreview generateTransactionPDFDataUrl={generateTransactionPDFDataUrl} />
+            <div className="flex-1 bg-gray-50 overflow-hidden flex flex-col">
+              <TransactionPDFPreview 
+                generateTransactionPDFDataUrl={generateTransactionPDFDataUrl} 
+                isFullScreen={isFullScreen}
+              />
             </div>
             
-            <div className="p-4 border-t bg-white">
+            <div className="p-4 border-t bg-white flex gap-2 flex-shrink-0">
               <Button
-                onClick={() => setShowTransactionModal(false)}
-                className="w-full h-12 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
+                onClick={() => {
+                  setShowTransactionModal(false)
+                  setIsFullScreen(false)
+                }}
+                variant="outline"
+                className="flex-1 h-12 border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
               >
-                Back 
+                Back to Basket
+              </Button>
+              <Button
+                onClick={handleBuyNow}
+                className="flex-1 h-12 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
+              >
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Confirm Order
               </Button>
             </div>
           </div>
@@ -330,19 +452,25 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
   )
 }
 
-// Helper component for PDF preview
-function TransactionPDFPreview({ generateTransactionPDFDataUrl }: { generateTransactionPDFDataUrl: () => Promise<string> }) {
+// Helper component for PDF preview - Fixed for mobile
+function TransactionPDFPreview({ 
+  generateTransactionPDFDataUrl, 
+  isFullScreen 
+}: { 
+  generateTransactionPDFDataUrl: () => Promise<string>
+  isFullScreen: boolean
+}) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Generate PDF on mount
-  useState(() => {
+  useEffect(() => {
     setLoading(true)
     generateTransactionPDFDataUrl().then((url) => {
       setPdfUrl(url)
       setLoading(false)
     })
-  })
+  }, [generateTransactionPDFDataUrl])
 
   if (loading) {
     return (
@@ -355,16 +483,18 @@ function TransactionPDFPreview({ generateTransactionPDFDataUrl }: { generateTran
     )
   }
 
-  // Use <iframe> for PDF preview (works on all devices)
   return (
-    <iframe
-      src={pdfUrl || ""}
-      title="Transaction PDF Preview"
-      className="w-full h-full border-0 rounded-lg shadow-inner"
-      style={{
-        background: "#f6e9d7",
-        minHeight: "400px"
-      }}
-    />
+    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-none sm:rounded-lg overflow-hidden">
+      <iframe
+        src={pdfUrl || ""}
+        title="Transaction PDF Preview"
+        className="w-full h-full border-0"
+        style={{
+          background: "#f6e9d7",
+          minHeight: "100%",
+          width: "100%"
+        }}
+      />
+    </div>
   )
 }
