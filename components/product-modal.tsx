@@ -7,11 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Star, ShoppingCart, MessageCircle, Phone, MapPin, X, Plus, Minus } from "lucide-react"
+import { useBasket } from "@/context/basket-context"
+import { Star, ShoppingCart, X, Plus, Minus } from "lucide-react"
 import { Input } from "./ui/input"
 
-// Product interface should match your mock-data
 interface Product {
   id: string
   name: string
@@ -30,7 +29,6 @@ interface ProductModalProps {
   onClose: () => void
 }
 
-// Pricing structure for customizations
 const PRICING = {
   sizes: {
     small: 0,
@@ -56,7 +54,6 @@ const PRICING = {
 }
 
 export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
-  // Dynamic options based on product category
   const getDefaultOptions = (category?: string) => {
     switch (category) {
       case "coffee":
@@ -121,30 +118,49 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
   const [options, setOptions] = useState(getDefaultOptions(displayProduct?.category))
   const [quantity, setQuantity] = useState(1)
   const [totalPrice, setTotalPrice] = useState(0)
+  const [subItems, setSubItems] = useState([
+    { options: getDefaultOptions(product?.category), quantity: 1 }
+  ])
 
-  // Calculate total price whenever options or quantity change
+  useEffect(() => {
+    setSubItems([{ options: getDefaultOptions(product?.category), quantity: 1 }])
+  }, [product, isOpen])
+
+  const updateSubItem = (idx: number, newData: Partial<{ options: any; quantity: number }>) => {
+    setSubItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, ...newData } : item))
+    )
+  }
+
+  const handleAddSubItem = () => {
+    setSubItems((prev) => [
+      ...prev,
+      { options: getDefaultOptions(product?.category), quantity: 1 }
+    ])
+  }
+
+  const handleRemoveSubItem = (idx: number) => {
+    setSubItems((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   useEffect(() => {
     if (!displayProduct) return
     
     let basePrice = displayProduct.price
     let additionalCharges = 0
     
-    // Add size charge if applicable
     if (options.size && PRICING.sizes[options.size as keyof typeof PRICING.sizes] !== undefined) {
       additionalCharges += PRICING.sizes[options.size as keyof typeof PRICING.sizes]
     }
     
-    // Add shots charge for coffee
     if (options.shots && PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots] !== undefined) {
       additionalCharges += PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots]
     }
     
-    // Add milk charge if premium milk selected
     if (options.milk && PRICING.milk[options.milk as keyof typeof PRICING.milk] !== undefined) {
       additionalCharges += PRICING.milk[options.milk as keyof typeof PRICING.milk]
     }
     
-    // Add portion charge for food items
     if (options.portion && PRICING.portions[options.portion as keyof typeof PRICING.portions] !== undefined) {
       additionalCharges += PRICING.portions[options.portion as keyof typeof PRICING.portions]
     }
@@ -153,7 +169,6 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     setTotalPrice(itemTotal * quantity)
   }, [displayProduct, options, quantity])
 
-  // Contact info (can be imported from your dataManager)
   const contactInfo = {
     telegram: "https://t.me/Eschoolcam",
     facebook: "https://www.facebook.com/mrr.hong.5055",
@@ -161,11 +176,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     mapUrl: "https://maps.app.goo.gl/xC3pE4kPM2C4sdaN9?g_st=ipc"
   }
 
-  // Telegram message generator (no price)
-  const generateTelegramMessage = () => {
+  const getOrderOptionsText = (category: string | undefined, options: any) => {
     let optionsText = ""
-    
-    if (displayProduct?.category === "coffee") {
+    if (category === "coffee") {
       optionsText = [
         `Size: ${options.size}`,
         `Shots: ${options.shots}`,
@@ -173,39 +186,194 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
         `Ice level: ${options.ice}`,
         `Milk type: ${options.milk}`
       ].join("\n")
-    } else if (displayProduct?.category === "tea") {
+    } else if (category === "tea") {
       optionsText = [
         `Size: ${options.size}`,
         `Sugar level: ${options.sugar}`,
         `Ice level: ${options.ice}`
       ].join("\n")
     } else if (
-      ["milk-drinks", "smoothies", "soft-drinks"].includes(displayProduct?.category || "")
+      ["milk-drinks", "smoothies", "soft-drinks"].includes(category || "")
     ) {
       optionsText = [
         `Size: ${options.size}`,
         `Ice level: ${options.ice}`
       ].join("\n")
     } else if (
-      ["rice-dishes", "noodles", "sandwiches", "cakes-pastries", "salads", "snacks", "desserts"].includes(displayProduct?.category || "")
+      ["rice-dishes", "noodles", "sandwiches", "cakes-pastries", "salads", "snacks", "desserts"].includes(category || "")
     ) {
       optionsText = [
         `Portion size: ${options.portion}`,
         options.extras ? `• Special requests: ${options.extras}` : ""
       ].filter(Boolean).join("\n")
     }
-    
-    return `Hello! I would like to place an order:\n\n${displayProduct?.name} x ${quantity}  \n${optionsText ? optionsText + "\n" : ""}\nThank you!`
+    return optionsText
   }
 
-  const handleTelegramOrder = () => {
-    const message = generateTelegramMessage()
+  const calculateItemPrice = (category: string | undefined, options: any, basePrice: number) => {
+    let additionalCharges = 0
+    if (options.size && PRICING.sizes[options.size as keyof typeof PRICING.sizes] !== undefined) {
+      additionalCharges += PRICING.sizes[options.size as keyof typeof PRICING.sizes]
+    }
+    if (options.shots && PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots] !== undefined) {
+      additionalCharges += PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots]
+    }
+    if (options.milk && PRICING.milk[options.milk as keyof typeof PRICING.milk] !== undefined) {
+      additionalCharges += PRICING.milk[options.milk as keyof typeof PRICING.milk]
+    }
+    if (options.portion && PRICING.portions[options.portion as keyof typeof PRICING.portions] !== undefined) {
+      additionalCharges += PRICING.portions[options.portion as keyof typeof PRICING.portions]
+    }
+    return basePrice + additionalCharges
+  }
+
+  const generateOrderMessage = (
+    subItemsList: { options: any; quantity: number }[],
+    timestamp: string
+  ) => {
+    let msg = `Order: ${product?.name}\nTime: ${timestamp}\n\n`
+    subItemsList.forEach((item, idx) => {
+      const optionsText = getOrderOptionsText(product?.category, item.options)
+      const itemPrice = calculateItemPrice(product?.category, item.options, product?.price ?? 0)
+      msg +=
+        `Item ${idx + 1}:\n` +
+        `  Quantity: ${item.quantity}\n` +
+        (optionsText ? optionsText.split("\n").map(line => `  ${line}`).join("\n") + "\n" : "") +
+        `  Total: $${(itemPrice * item.quantity).toFixed(2)}\n\n`
+    })
+    msg += "Thank you!"
+    return msg
+  }
+
+  const handleTelegramOrder = async () => {
+    if (!product) return
+
+    const timestamp = new Date().toLocaleString()
+    const message = generateOrderMessage(subItems, timestamp)
+
     const encodedMessage = encodeURIComponent(message)
     const telegramUrl = `${contactInfo.telegram}?text=${encodedMessage}`
     window.open(telegramUrl, "_blank")
+
+    await generateAndDownloadPDF(subItems, timestamp, message)
   }
 
-  // Dietary color helper
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!window.jspdf) {
+      const script = document.createElement("script")
+      script.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"
+      script.async = true
+      document.body.appendChild(script)
+    }
+  }, [])
+
+  const generateAndDownloadPDF = async (
+    subItemsList: { options: any; quantity: number }[],
+    timestamp: string,
+    message: string
+  ) => {
+    function waitForJsPDF() {
+      return new Promise((resolve) => {
+        if (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) {
+          resolve(window.jspdf.jsPDF)
+        } else {
+          const interval = setInterval(() => {
+            if (window.jspdf && window.jspdf.jsPDF) {
+              clearInterval(interval)
+              resolve(window.jspdf.jsPDF)
+            }
+          }, 50)
+        }
+      })
+    }
+    const JsPDF = await waitForJsPDF() as any
+    const doc = new JsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: [340, Math.max(600, 180 + subItemsList.length * 120)]
+    })
+
+    doc.setFillColor("#f6e9d7")
+    doc.rect(0, 0, 340, 80, "F")
+    doc.setFontSize(20)
+    doc.setTextColor("#8d5524")
+    doc.setFont("helvetica", "bold")
+    doc.text("Slow Drip", 170, 38, { align: "center" })
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor("#8d5524")
+    doc.text("Order Receipt", 170, 58, { align: "center" })
+
+    let y = 95
+    doc.setFontSize(12)
+    doc.setTextColor("#333")
+    doc.setFont("helvetica", "bold")
+    doc.text(`Product: ${product?.name ?? ""}`, 20, y)
+    y += 18
+    doc.setFont("helvetica", "normal")
+    doc.text(`Date: ${timestamp}`, 20, y)
+    y += 22
+
+    doc.setDrawColor("#e0c9a6")
+    doc.line(20, y, 320, y)
+    y += 18
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(13)
+    doc.text("Order Items", 20, y)
+    y += 18
+
+    let grandTotal = 0
+
+    subItemsList.forEach((item, idx) => {
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.setTextColor("#8d5524")
+      doc.text(`Item ${idx + 1}`, 20, y)
+      y += 16
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor("#333")
+      doc.text(`Quantity: ${item.quantity}`, 28, y)
+      y += 14
+      const optionsText = getOrderOptionsText(product?.category, item.options)
+      if (optionsText) {
+        doc.setFont("helvetica", "normal")
+        const lines = doc.splitTextToSize(optionsText, 270)
+        doc.text(lines, 36, y)
+        y += lines.length * 14
+      }
+      const itemPrice = calculateItemPrice(product?.category, item.options, product?.price ?? 0)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor("#8d5524")
+      doc.text(`Total: $${(itemPrice * item.quantity).toFixed(2)}`, 28, y)
+      y += 20
+      doc.setDrawColor("#e0c9a6")
+      doc.line(20, y, 320, y)
+      y += 10
+      grandTotal += itemPrice * item.quantity
+    })
+
+    y += 10
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(14)
+    doc.setTextColor("#8d5524")
+    doc.text(`Grand Total: $${grandTotal.toFixed(2)}`, 20, y)
+    y += 24
+
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor("#333")
+    doc.text("Thank you for your order!", 170, y, { align: "center" })
+    y += 16
+    doc.setFontSize(9)
+    doc.setTextColor("#bfa16b")
+    doc.text("Slow Drip · Heart of the city", 170, y, { align: "center" })
+
+    const safeTimestamp = timestamp.replace(/[^0-9a-zA-Z]/g, "_")
+    const filename = `order_${safeTimestamp}.pdf`
+    doc.save(filename)
+  }
+
   const getDietaryColor = (dietary: string) => {
     switch (dietary.toLowerCase()) {
       case "vegan":
@@ -221,47 +389,82 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     }
   }
 
-  // Calculate base price with customizations
-  const calculateItemPrice = () => {
-    if (!displayProduct) return 0
-    
-    let basePrice = displayProduct.price
-    let additionalCharges = 0
-    
-    // Add size charge if applicable
-    if (options.size && PRICING.sizes[options.size as keyof typeof PRICING.sizes] !== undefined) {
-      additionalCharges += PRICING.sizes[options.size as keyof typeof PRICING.sizes]
-    }
-    
-    // Add shots charge for coffee
-    if (options.shots && PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots] !== undefined) {
-      additionalCharges += PRICING.coffeeShots[options.shots as keyof typeof PRICING.coffeeShots]
-    }
-    
-    // Add milk charge if premium milk selected
-    if (options.milk && PRICING.milk[options.milk as keyof typeof PRICING.milk] !== undefined) {
-      additionalCharges += PRICING.milk[options.milk as keyof typeof PRICING.milk]
-    }
-    
-    // Add portion charge for food items
-    if (options.portion && PRICING.portions[options.portion as keyof typeof PRICING.portions] !== undefined) {
-      additionalCharges += PRICING.portions[options.portion as keyof typeof PRICING.portions]
-    }
-    
-    return basePrice + additionalCharges
-  }
+  const renderSubItemForms = () => (
+    <div className="space-y-8">
+      {subItems.map((item, idx) => (
+        <div
+          key={idx}
+          className="bg-amber-50/70 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200/30 dark:border-amber-800/30 shadow-sm relative"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-bold text-amber-900 dark:text-amber-100 text-base sm:text-lg">
+              Item {idx + 1}
+            </span>
+            {subItems.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                onClick={() => handleRemoveSubItem(idx)}
+                aria-label="Remove item"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center mb-4">
+            <Label className="mr-3 text-base font-semibold">Amount</Label>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-r-none border-amber-300"
+              onClick={() =>
+                updateSubItem(idx, { quantity: Math.max(1, item.quantity - 1) })
+              }
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center border-y border-amber-300">
+              {item.quantity}
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-l-none border-amber-300"
+              onClick={() =>
+                updateSubItem(idx, { quantity: item.quantity + 1 })
+              }
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div>
+            {renderOptionsForSubItem(idx, item.options)}
+          </div>
+        </div>
+      ))}
+      <div className="flex justify-center">
+        <Button
+          variant="outline"
+          className="mt-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-800/30"
+          onClick={handleAddSubItem}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Another Item
+        </Button>
+      </div>
+    </div>
+  )
 
-  // Option renderers
-  const renderOptions = () => {
-    if (!displayProduct?.category) return null
-    switch (displayProduct.category) {
+  const renderOptionsForSubItem = (idx: number, options: any) => {
+    if (!product?.category) return null
+    switch (product.category) {
       case "coffee":
         return (
           <>
-            {/* Size */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Size</Label>
-              <Select value={options.size} onValueChange={v => setOptions({ ...options, size: v })}>
+              <Select value={options.size} onValueChange={v => updateSubItem(idx, { options: { ...options, size: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="small">Small (+${PRICING.sizes.small.toFixed(2)})</SelectItem>
@@ -270,10 +473,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            {/* Coffee Shots */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Coffee Shots</Label>
-              <Select value={options.shots} onValueChange={v => setOptions({ ...options, shots: v })}>
+              <Select value={options.shots} onValueChange={v => updateSubItem(idx, { options: { ...options, shots: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Single Shot (+${PRICING.coffeeShots.single.toFixed(2)})</SelectItem>
@@ -282,10 +484,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            {/* Sugar */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Sugar</Label>
-              <Select value={options.sugar} onValueChange={v => setOptions({ ...options, sugar: v })}>
+              <Select value={options.sugar} onValueChange={v => updateSubItem(idx, { options: { ...options, sugar: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-sugar">No Sugar</SelectItem>
@@ -295,10 +496,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            {/* Ice */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Ice</Label>
-              <Select value={options.ice} onValueChange={v => setOptions({ ...options, ice: v })}>
+              <Select value={options.ice} onValueChange={v => updateSubItem(idx, { options: { ...options, ice: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-ice">No Ice</SelectItem>
@@ -308,10 +508,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            {/* Milk */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Milk</Label>
-              <Select value={options.milk} onValueChange={v => setOptions({ ...options, milk: v })}>
+              <Select value={options.milk} onValueChange={v => updateSubItem(idx, { options: { ...options, milk: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="regular">Regular Milk (+${PRICING.milk.regular.toFixed(2)})</SelectItem>
@@ -329,7 +528,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
           <>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Size</Label>
-              <Select value={options.size} onValueChange={v => setOptions({ ...options, size: v })}>
+              <Select value={options.size} onValueChange={v => updateSubItem(idx, { options: { ...options, size: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="small">Small (+${PRICING.sizes.small.toFixed(2)})</SelectItem>
@@ -340,7 +539,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
             </div>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Sugar</Label>
-              <Select value={options.sugar} onValueChange={v => setOptions({ ...options, sugar: v })}>
+              <Select value={options.sugar} onValueChange={v => updateSubItem(idx, { options: { ...options, sugar: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-sugar">No Sugar</SelectItem>
@@ -352,7 +551,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
             </div>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Ice</Label>
-              <Select value={options.ice} onValueChange={v => setOptions({ ...options, ice: v })}>
+              <Select value={options.ice} onValueChange={v => updateSubItem(idx, { options: { ...options, ice: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-ice">No Ice</SelectItem>
@@ -371,7 +570,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
           <>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Size</Label>
-              <Select value={options.size} onValueChange={v => setOptions({ ...options, size: v })}>
+              <Select value={options.size} onValueChange={v => updateSubItem(idx, { options: { ...options, size: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="small">Small (+${PRICING.sizes.small.toFixed(2)})</SelectItem>
@@ -382,7 +581,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
             </div>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Ice</Label>
-              <Select value={options.ice} onValueChange={v => setOptions({ ...options, ice: v })}>
+              <Select value={options.ice} onValueChange={v => updateSubItem(idx, { options: { ...options, ice: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-ice">No Ice</SelectItem>
@@ -405,7 +604,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
           <>
             <div className="space-y-3">
               <Label className="text-base font-semibold">Portion</Label>
-              <Select value={options.portion} onValueChange={v => setOptions({ ...options, portion: v })}>
+              <Select value={options.portion} onValueChange={v => updateSubItem(idx, { options: { ...options, portion: v } })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="regular">Regular (+${PRICING.portions.regular.toFixed(2)})</SelectItem>
@@ -418,7 +617,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
               <Input
                 placeholder="Any extras? (e.g. no onions, extra cheese)"
                 value={options.extras || ""}
-                onChange={e => setOptions({ ...options, extras: e.target.value })}
+                onChange={e => updateSubItem(idx, { options: { ...options, extras: e.target.value } })}
               />
             </div>
           </>
@@ -428,13 +627,29 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     }
   }
 
+  // Add basket context
+  const { addItem, basketTotal } = useBasket()
+
+  // Add to basket handler
+  const handleAddToBasket = () => {
+    if (!product) return
+    subItems.forEach(item => {
+      addItem({
+        product,
+        options: item.options,
+        quantity: item.quantity
+      })
+    })
+    // Optionally: show animation/feedback here
+    onClose()
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="max-w-4xl w-full sm:w-[95vw] max-h-[95vh] overflow-y-auto bg-white dark:bg-amber-950 border-amber-200/50 dark:border-amber-800/50 shadow-2xl sm:rounded-2xl p-0"
         style={{ padding: 0 }}
       >
-        {/* Header */}
         <div className="sticky top-0 bg-white/95 dark:bg-amber-950/95 backdrop-blur-xl border-b border-amber-200/30 dark:border-amber-800/30 p-4 sm:p-6 rounded-t-2xl z-10">
           <div className="flex items-start justify-between">
             <div className="flex-1 pr-2 sm:pr-4">
@@ -471,7 +686,6 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
 
         <div className="p-3 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8">
-            {/* Product Image */}
             <div className="lg:col-span-2 mb-4 lg:mb-0">
               <div className="relative overflow-hidden rounded-2xl shadow-lg">
                 {displayProduct?.image ? (
@@ -492,16 +706,13 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
               </div>
             </div>
 
-            {/* Product Details & Customization */}
             <div className="lg:col-span-3 space-y-6">
-              {/* Description */}
               <div>
                 <p className="text-amber-800 dark:text-amber-200 leading-relaxed text-base sm:text-lg">
                   {displayProduct?.fullDescription}
                 </p>
               </div>
 
-              {/* Dietary Information */}
               {(displayProduct?.dietary?.length ?? 0) > 0 && (
                 <div>
                   <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-3 text-lg">
@@ -520,110 +731,62 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                   </div>
                 </div>
               )}
-
-              {/* Quantity Selector */}
-              <div className="bg-amber-50/50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200/30 dark:border-amber-800/30">
-                <Label className="text-base font-semibold mb-3 block">Amount</Label>
-                <div className="flex items-center">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 rounded-r-none border-amber-300"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <div className="h-10 w-16 flex items-center justify-center border-y border-amber-300">
-                    {quantity}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 rounded-l-none border-amber-300"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Dynamic Options */}
-              <div className="bg-amber-50/50 dark:bg-amber-900/20 rounded-2xl p-3 sm:p-6 border border-amber-200/30 dark:border-amber-800/30">
-                <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-4 sm:mb-6 text-lg sm:text-xl">
-                  Customize Your Order
-                </h4>
-                <div className="space-y-4 sm:space-y-6">
-                  {renderOptions()}
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Order Actions */}
+          <div className="bg-amber-50/50 dark:bg-amber-900/20 rounded-2xl p-3 sm:p-6 border border-amber-200/30 dark:border-amber-800/30">
+            <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-4 sm:mb-6 text-lg sm:text-xl">
+              Customize Your Order
+            </h4>
+            {renderSubItemForms()}
+          </div>
+
           <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 rounded-2xl p-3 sm:p-6 border border-amber-200/50 dark:border-amber-800/50">
             <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-3 sm:mb-4 text-lg sm:text-xl">
-              Ready to Order?
+              Ready to Add to Basket?
             </h4>
             <div className="mb-4 p-3 bg-white/80 dark:bg-amber-900/30 rounded-lg">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Order Summary:</strong> {quantity} x {displayProduct?.name} 
-                {options.size && ` (${options.size})`}
-                {options.shots && `, ${options.shots} shot`}
-                {options.milk && options.milk !== "regular" && `, ${options.milk} milk`}
-                {options.portion && `, ${options.portion} portion`}
+                <strong>Order Summary:</strong>
               </p>
-              <p className="text-lg font-bold mt-2 text-amber-700 dark:text-amber-300">
-                Total: ${totalPrice.toFixed(2)}
-                <span className="text-sm font-normal ml-2 text-amber-600 dark:text-amber-400">
-                  (${calculateItemPrice().toFixed(2)} × {quantity})
-                </span>
+              <ul className="mt-2 space-y-2">
+                {subItems.map((item, idx) => {
+                  const itemPrice = calculateItemPrice(product?.category, item.options, product?.price ?? 0)
+                  return (
+                    <li key={idx} className="text-amber-800 dark:text-amber-200 text-sm">
+                      <span className="font-semibold">Item {idx + 1}:</span> {item.quantity} x {product?.name}
+                      {item.options.size && ` (${item.options.size})`}
+                      {item.options.shots && `, ${item.options.shots} shot`}
+                      {item.options.milk && item.options.milk !== "regular" && `, ${item.options.milk} milk`}
+                      {item.options.portion && `, ${item.options.portion} portion`}
+                      <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                        (${itemPrice.toFixed(2)} × {item.quantity})
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="text-lg font-bold mt-4 text-amber-700 dark:text-amber-300">
+                Grand Total: $
+                {subItems.reduce(
+                  (sum, item) =>
+                    sum +
+                    calculateItemPrice(product?.category, item.options, product?.price ?? 0) *
+                      item.quantity,
+                  0
+                ).toFixed(2)}
+              </p>
+              <p className="text-sm mt-2 text-amber-700 dark:text-amber-300">
+                Basket Total: <span className="font-bold">${basketTotal.toFixed(2)}</span>
               </p>
             </div>
             <Button
-              onClick={handleTelegramOrder}
-              className="w-full h-12 sm:h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] mb-3 sm:mb-4"
+              onClick={handleAddToBasket}
+              className="w-full h-12 sm:h-14 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] mb-3 sm:mb-4"
             >
               <ShoppingCart className="w-5 h-5 mr-3" />
-              Order via Telegram
+              Add to Basket
             </Button>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-              {contactInfo?.facebook && (
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  className="h-10 sm:h-12 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors"
-                >
-                  <a href={contactInfo.facebook} target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Facebook
-                  </a>
-                </Button>
-              )}
-              {contactInfo?.phone && (
-                <Button 
-                  asChild 
-                  variant="outline"
-                  className="h-10 sm:h-12 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors"
-                >
-                  <a href={`tel:${contactInfo.phone}`}>
-                    <Phone className="w-4 h-4 mr-2" />
-                    Call Us
-                  </a>
-                </Button>
-              )}
-              {contactInfo?.mapUrl && (
-                <Button 
-                  asChild 
-                  variant="outline"
-                  className="h-10 sm:h-12 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors sm:col-span-1"
-                >
-                  <a href={contactInfo.mapUrl} target="_blank" rel="noopener noreferrer">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Visit Us
-                  </a>
-                </Button>
-              )}
-            </div>
           </div>
         </div>
       </DialogContent>

@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Coffee, Menu, X } from "lucide-react"
+import { Coffee, Menu, X, ShoppingCart } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useBasket } from "@/context/basket-context"
+import { BasketModal } from "./basket-modal"
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { items } = useBasket()
+  const [basketOpen, setBasketOpen] = useState(false)
   const navLinks = [
     { href: "#home", label: "Home" },
     { href: "#menu", label: "Menu" },
@@ -166,6 +170,22 @@ export function Navigation() {
       </nav>
 
       <div className="h-16 lg:h-20"></div>
+
+      <div className="fixed top-4 right-4 z-50">
+        <button
+          className="relative bg-gradient-to-br from-amber-100 to-amber-300 dark:from-coffee-900 dark:to-coffee-800 rounded-full shadow-xl p-2 hover:scale-105 transition border-2 border-amber-200 dark:border-coffee-700"
+          onClick={() => setBasketOpen(true)}
+          aria-label="Open basket"
+        >
+          <ShoppingCart className="w-7 h-7 text-amber-700 dark:text-amber-200" />
+          {items.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-xs rounded-full px-2 py-0.5 border-2 border-white dark:border-coffee-900 font-bold shadow">
+              {items.length}
+            </span>
+          )}
+        </button>
+      </div>
+      <BasketModal open={basketOpen} onClose={() => setBasketOpen(false)} />
     </>
   )
 }

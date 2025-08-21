@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Poppins, Inter } from "next/font/google"
 import "./globals.css"
+import { BasketProvider } from "@/context/basket-context"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -31,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body className="font-sans antialiased bg-cream-50 dark:bg-gray-900 text-coffee-900 dark:text-cream-100 transition-colors duration-300">
-        {children}
+        <BasketProvider>{children}</BasketProvider>
       </body>
     </html>
   )
