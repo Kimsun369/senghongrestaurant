@@ -167,91 +167,153 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
     return doc.output("dataurlstring")
   }
 
-  // Download PDF function
-  const downloadPDF = async () => {
-    const timestamp = new Date().toLocaleString()
-    
-    // Calculate dynamic height based on content
-    const baseHeight = 200
-    const itemHeight = items.length * 80
-    const totalHeight = Math.max(500, baseHeight + itemHeight)
-    
-    // Adjust font sizes based on number of items
-    const titleFontSize = items.length > 5 ? 16 : 18
-    const itemFontSize = items.length > 5 ? 9 : 10
-    const smallFontSize = items.length > 5 ? 7 : 8
-    
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: [300, totalHeight]
-    })
-
-    doc.setFillColor("#f6e9d7")
-    doc.rect(0, 0, 300, 70, "F")
-    doc.setFontSize(titleFontSize)
-    doc.setTextColor("#8d5524")
-    doc.setFont("helvetica", "bold")
-    doc.text("Slow Drip", 150, 32, { align: "center" })
-    doc.setFontSize(smallFontSize)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor("#8d5524")
-    doc.text("Order Receipt", 150, 50, { align: "center" })
-
-    let y = 85
-    doc.setFontSize(itemFontSize)
-    doc.setTextColor("#333")
-    doc.setFont("helvetica", "bold")
-    doc.text(`Date: ${timestamp}`, 15, y)
-    y += 20
-
-    doc.setDrawColor("#e0c9a6")
-    doc.line(15, y, 285, y)
-    y += 15
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(itemFontSize)
-    doc.text("Order Items", 15, y)
-    y += 15
-
-    items.forEach((item, idx) => {
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(itemFontSize)
-      doc.setTextColor("#8d5524")
-      doc.text(`Item ${idx + 1}: ${item.product.name}`, 15, y)
-      y += 12
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor("#333")
-      doc.text(`Quantity: ${item.quantity}`, 20, y)
-      y += 10
-      const optionsText = getOrderOptionsText(item.product.category, item.options)
-      if (optionsText) {
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(smallFontSize)
-        const lines = doc.splitTextToSize(optionsText, 250)
-        doc.text(lines, 25, y)
-        y += lines.length * 9
+  // Download as image function for mobile-friendly saving
+  const downloadAsImage = async () => {
+    try {
+      // Check if user wants to allow image download
+      const userConfirmed = window.confirm(
+        "To save directly to your photos/gallery on mobile, we'll convert the receipt to an image (PNG format). Do you want to continue?"
+      )
+      
+      if (!userConfirmed) {
+        return
       }
-      y += 8
-    })
 
-    y += 8
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(itemFontSize + 2)
-    doc.setTextColor("#8d5524")
-    doc.text(`Grand Total: $${basketTotal.toFixed(2)}`, 15, y)
-    y += 20
+      const timestamp = new Date().toLocaleString()
+      
+      // Create canvas for better mobile compatibility
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not get canvas context')
 
-    doc.setFontSize(smallFontSize)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor("#333")
-    doc.text("Thank you for your order!", 150, y, { align: "center" })
-    y += 12
-    doc.setFontSize(smallFontSize - 1)
-    doc.setTextColor("#bfa16b")
-    doc.text("Slow Drip · Heart of the city", 150, y, { align: "center" })
+      // Set canvas size for mobile-friendly dimensions
+      const width = 400
+      const baseHeight = 300
+      const itemHeight = items.length * 120
+      const totalHeight = Math.max(600, baseHeight + itemHeight)
+      
+      canvas.width = width
+      canvas.height = totalHeight
 
-    // Download the PDF
-    doc.save(`SlowDrip_Order_${new Date().toISOString().slice(0, 10)}.pdf`)
+      // Background
+      ctx.fillStyle = '#f6e9d7'
+      ctx.fillRect(0, 0, width, totalHeight)
+
+      // Header section
+      ctx.fillStyle = '#f6e9d7'
+      ctx.fillRect(0, 0, width, 90)
+
+      // Title
+      ctx.fillStyle = '#8d5524'
+      ctx.font = 'bold 24px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText('Slow Drip', width / 2, 35)
+      
+      ctx.font = '16px Arial'
+      ctx.fillText('Order Receipt', width / 2, 65)
+
+      let y = 110
+      
+      // Date
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#333'
+      ctx.font = 'bold 14px Arial'
+      ctx.fillText(`Date: ${timestamp}`, 20, y)
+      y += 30
+
+      // Line separator
+      ctx.strokeStyle = '#e0c9a6'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(20, y)
+      ctx.lineTo(width - 20, y)
+      ctx.stroke()
+      y += 25
+
+      // Order items header
+      ctx.fillStyle = '#333'
+      ctx.font = 'bold 16px Arial'
+      ctx.fillText('Order Items', 20, y)
+      y += 25
+
+      // Items
+      items.forEach((item, idx) => {
+        // Item name
+        ctx.fillStyle = '#8d5524'
+        ctx.font = 'bold 14px Arial'
+        ctx.fillText(`Item ${idx + 1}: ${item.product.name}`, 20, y)
+        y += 20
+        
+        // Quantity
+        ctx.fillStyle = '#333'
+        ctx.font = '12px Arial'
+        ctx.fillText(`Quantity: ${item.quantity}`, 25, y)
+        y += 16
+        
+        // Options
+        const optionsText = getOrderOptionsText(item.product.category, item.options)
+        if (optionsText) {
+          ctx.font = '11px Arial'
+          const lines = optionsText.split('\n')
+          lines.forEach(line => {
+            if (line.trim()) {
+              ctx.fillText(line, 30, y)
+              y += 14
+            }
+          })
+        }
+        
+        // Price
+        ctx.fillStyle = '#8d5524'
+        ctx.font = 'bold 12px Arial'
+        ctx.textAlign = 'right'
+        const price = calculateItemPrice(item.product.category, item.options, item.product.price)
+        ctx.fillText(`${price.toFixed(2)}`, width - 20, y - 25)
+        ctx.textAlign = 'left'
+        
+        y += 20
+      })
+
+      y += 15
+      // Total
+      ctx.fillStyle = '#8d5524'
+      ctx.font = 'bold 18px Arial'
+      ctx.fillText(`Grand Total: ${basketTotal.toFixed(2)}`, 20, y)
+      y += 40
+
+      // Footer
+      ctx.fillStyle = '#333'
+      ctx.font = '14px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText('Thank you for your order!', width / 2, y)
+      y += 20
+      
+      ctx.fillStyle = '#bfa16b'
+      ctx.font = '12px Arial'
+      ctx.fillText('Slow Drip · Heart of the city', width / 2, y)
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) throw new Error('Could not create image blob')
+        
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `SlowDrip_Order_${new Date().toISOString().slice(0, 10)}.png`
+        
+        // For mobile browsers, try to trigger download
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        // Clean up
+        URL.revokeObjectURL(url)
+      }, 'image/png', 0.95)
+
+    } catch (error) {
+      console.error('Error generating image:', error)
+      alert('Sorry, there was an error generating the image. Please try again.')
+    }
   }
 
   // Show Transaction Modal
@@ -382,8 +444,8 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
           style={{ zIndex: 9999 }}
         >
           <div 
-            className={`relative bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden ${
-              isFullScreen ? "w-full h-full max-w-none max-h-none rounded-none" : "w-full h-full max-w-[100vw] max-h-[100vh] sm:w-[95vw] sm:max-w-[500px] sm:h-[90vh] sm:max-h-[800px] sm:rounded-xl"
+            className={`relative bg-white shadow-2xl flex flex-col overflow-hidden ${
+              isFullScreen ? "w-full h-full max-w-none max-h-none rounded-none" : "w-full h-full max-w-none max-h-none rounded-none sm:w-[95vw] sm:max-w-[500px] sm:h-[90vh] sm:max-h-[800px] sm:rounded-xl"
             }`}
           >
             <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-amber-50 to-amber-100 flex-shrink-0">
@@ -394,8 +456,8 @@ export function BasketModal({ open, onClose }: { open: boolean; onClose: () => v
               <div className="flex items-center gap-2">
                 <button
                   className="text-gray-600 hover:text-green-500 transition-colors p-1 rounded-full hover:bg-green-50"
-                  aria-label="Download PDF"
-                  onClick={downloadPDF}
+                  aria-label="Download as Image"
+                  onClick={downloadAsImage}
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -484,7 +546,7 @@ function TransactionPDFPreview({
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-none sm:rounded-lg overflow-hidden">
+    <div className="w-full h-full flex items-center justify-center bg-gray-100 overflow-hidden">
       <iframe
         src={pdfUrl || ""}
         title="Transaction PDF Preview"
@@ -492,7 +554,9 @@ function TransactionPDFPreview({
         style={{
           background: "#f6e9d7",
           minHeight: "100%",
-          width: "100%"
+          width: "100%",
+          transform: "scale(1)",
+          transformOrigin: "top left"
         }}
       />
     </div>
